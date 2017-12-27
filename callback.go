@@ -8,9 +8,10 @@ import (
 
 type (
 	Callback struct {
-		called int32
-		result chan []byte
-		err    chan error
+		called  int32
+		deleted int32
+		result  chan []byte
+		err     chan error
 	}
 
 	CallbackPool struct {
@@ -22,6 +23,8 @@ var (
 	ErrNotConsumed = errors.New("not consumed yet")
 	ErrNotNotified = errors.New("not notified yet")
 	ErrNotified    = errors.New("notified")
+
+	defaultCallbackPool = NewCallbackPool()
 )
 
 func NewCallback() *Callback {
@@ -32,6 +35,9 @@ func NewCallback() *Callback {
 }
 
 func (cb *Callback) SetResult(d []byte) error {
+	if cb.IsDeleted() {
+		return errors.New("deleted")
+	}
 	if atomic.LoadInt32(&cb.called) > 0 {
 		return ErrNotified
 	}
@@ -41,6 +47,9 @@ func (cb *Callback) SetResult(d []byte) error {
 }
 
 func (cb *Callback) SetError(e error) error {
+	if cb.IsDeleted() {
+		return errors.New("deleted")
+	}
 	if atomic.LoadInt32(&cb.called) > 0 {
 		return ErrNotified
 	}
@@ -49,16 +58,17 @@ func (cb *Callback) SetError(e error) error {
 	return nil
 }
 
-func (cb *Callback) Destroy() error {
-	if atomic.LoadInt32(&cb.called) == 0 {
-		return ErrNotNotified
-	}
-	if len(cb.result) > 0 || len(cb.err) > 0 {
-		return ErrNotConsumed
-	}
+func (cb *Callback) Deleted() {
+	atomic.StoreInt32(&cb.deleted, 1)
 	close(cb.result)
 	close(cb.err)
-	return nil
+}
+
+func (cb *Callback) IsDeleted() bool {
+	if atomic.LoadInt32(&cb.deleted) > 0 {
+		return true
+	}
+	return false
 }
 
 func (cb *Callback) Reset() error {
@@ -89,6 +99,9 @@ func (cp *CallbackPool) Get() *Callback {
 }
 
 func (cp *CallbackPool) Put(cb *Callback) error {
+	if cb.IsDeleted() {
+		return errors.New("can not put deleted Callback back")
+	}
 	if err := cb.Reset(); err != nil {
 		return err
 	}

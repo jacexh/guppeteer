@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/jacexh/guppeteer/cdp"
-	"github.com/json-iterator/go"
 )
 
 const (
@@ -17,9 +16,9 @@ type (
 		domain
 	}
 	ReceivedMessageFromTargetParams struct {
-		SessionID SessionID           `json:"sessionId"`
-		Message   jsoniter.RawMessage `json:"message"`
-		TargetID  TargetID            `json:"targetId,omitempty"`
+		SessionID SessionID `json:"sessionId"`
+		Message   string    `json:"message"`
+		TargetID  TargetID  `json:"targetId,omitempty"`
 	}
 
 	EventDetachedFromTarget struct {

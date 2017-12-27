@@ -14,6 +14,24 @@
   version = "1.0.4"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/knq/chromedp"
+  packages = ["cdp","cdp/target"]
+  revision = "9424dc57d6f066b60b2d1d1af2e265b09f027315"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/knq/sysutil"
+  packages = ["."]
+  revision = "840643935d35cb81c833b4c142357dc9d519e390"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mailru/easyjson"
+  packages = [".","buffer","jlexer","jwriter"]
+  revision = "32fa128f234d041f196a9f3e0fea5ac9772c08e1"
+
+[[projects]]
   name = "go.uber.org/atomic"
   packages = ["."]
   revision = "8474b86a5a6f79c443ce4b2992817ff32cf208b8"
@@ -34,6 +52,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "318f9270632cdde2d9a386f0a4a4cd3ac4ddcea7f03ef21e986984c311d683f2"
+  inputs-digest = "bfd9560023a835cf3d1418bf87b6a17b754a2fc97cc1833e96ec439ecaa118b6"
   solver-name = "gps-cdcl"
   solver-version = 1

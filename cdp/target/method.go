@@ -42,9 +42,9 @@ type (
 
 	MethodSendMessageToTarget struct {
 		domain
-		Message   jsoniter.RawMessage `json:"message"`
-		SessionID SessionID           `json:"sessionId,omitempty"`
-		TargetID  TargetID            `json:"targetId,omitempty"`
+		Message   string    `json:"message"`
+		SessionID SessionID `json:"sessionId,omitempty"`
+		TargetID  TargetID  `json:"targetId,omitempty"`
 	}
 	SendMessageToTargetReturns struct{}
 )
