@@ -16,7 +16,7 @@ func (b *Browser) NewPage() (*Page, error) {
 	callback := defaultCallbackPool.Get()
 	defer defaultCallbackPool.Put(callback)
 	method := &target.MethodCreateTarget{URL: "about:blank"}
-	err := b.cnx.CallMethod(method, callback)
+	err := b.cnx.invoke(method, callback)
 	if err != nil {
 		return nil, err
 	}

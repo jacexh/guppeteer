@@ -40,12 +40,27 @@ func NewConnection(url string) (*Connection, error) {
 	return c, nil
 }
 
-func (cnx *Connection) CallMethod(method cdp.Method, n *Callback) error {
+func (cnx *Connection) invoke(method cdp.Method, n *Callback) error {
 	msg, data, err := cdp.NewAndDumpMessage(method)
 	if err != nil {
 		return err
 	}
 	return cnx.sendMessage(msg, data, n)
+}
+
+func (cnx *Connection) Execute(method cdp.Method) (interface{}, error) {
+	cb := defaultCallbackPool.Get()
+	defer defaultCallbackPool.Put(cb)
+	err := cnx.invoke(method, cb)
+	if err != nil {
+		return nil, err
+	}
+	select {
+	case err = <-cb.WaitError():
+		return nil, err
+	case data := <-cb.WaitResult():
+		return method.Load(data)
+	}
 }
 
 func (cnx *Connection) sendMessage(msg *cdp.Message, data []byte, n *Callback) error {
@@ -150,7 +165,7 @@ func (cnx *Connection) receiveMessage() error {
 func (cnx *Connection) CreateSession(tid target.TargetID) (*Session, error) {
 	m := &target.MethodAttachToTarget{TargetID: tid}
 	callback := defaultCallbackPool.Get()
-	cnx.CallMethod(m, callback)
+	cnx.invoke(m, callback)
 	defer func() { defaultCallbackPool.Put(callback) }()
 	select {
 	case err := <-callback.WaitError():
@@ -166,16 +181,32 @@ func (cnx *Connection) CreateSession(tid target.TargetID) (*Session, error) {
 	}
 }
 
-func (ss *Session) CallMethod(method cdp.Method, notifier *Callback) error {
+func (ss *Session) invoke(method cdp.Method, notifier *Callback) error {
 	msg, data, err := cdp.NewAndDumpMessage(method)
 	if err != nil {
 		return err
 	}
-	err = ss.parent.CallMethod(&target.MethodSendMessageToTarget{Message: string(data), SessionID: ss.ID}, nil) // notifier 不需要传给Connection
+	err = ss.parent.invoke(&target.MethodSendMessageToTarget{Message: string(data), SessionID: ss.ID}, nil) // notifier 不需要传给Connection
 	if err == nil && notifier != nil {
 		ss.callbacks.Store(msg.ID, notifier)
 	}
 	return err
+}
+
+func (ss *Session) Execute(method cdp.Method) (interface{}, error) {
+	cb := defaultCallbackPool.Get()
+	defer defaultCallbackPool.Put(cb)
+	err := ss.invoke(method, cb)
+	if err != nil {
+		return nil, err
+	}
+
+	select {
+	case err = <-cb.WaitError():
+		return nil, err
+	case data := <-cb.WaitResult():
+		return method.Load(data)
+	}
 }
 
 func (ss *Session) handleCallback(msg *cdp.Message) {

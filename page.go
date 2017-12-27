@@ -17,7 +17,7 @@ func CreatePage(s *Session) (*Page, error) {
 	p := &Page{s}
 	cb1 := defaultCallbackPool.Get()
 	defer defaultCallbackPool.Put(cb1)
-	p.session.CallMethod(&page.MethodEnable{}, cb1)
+	p.session.invoke(&page.MethodEnable{}, cb1)
 	select {
 	case err := <-cb1.WaitError():
 		return nil, err
@@ -26,7 +26,7 @@ func CreatePage(s *Session) (*Page, error) {
 
 	cb2 := defaultCallbackPool.Get()
 	defer defaultCallbackPool.Put(cb2)
-	p.session.CallMethod(&network.MethodEnable{}, cb2)
+	p.session.invoke(&network.MethodEnable{}, cb2)
 	select {
 	case err := <-cb2.WaitError():
 		return nil, err
@@ -35,29 +35,20 @@ func CreatePage(s *Session) (*Page, error) {
 	return p, nil
 }
 
-func (p *Page) Goto(url, referrer string) {
+func (p *Page) Goto(url, referrer string) error {
 	nav := &page.MethodNavigate{URL: url, Referrer: referrer}
 	cb := defaultCallbackPool.Get()
 	defer defaultCallbackPool.Put(cb)
 	sub := &Subscriber{}
-	sub.Subscribe("Page.frameStoppedLoading", func(d []byte) interface{} {
-		fmt.Println(string(d))
-		fmt.Println("hello world")
-		return nil
-	})
+	sub.Subscribe("Page.frameStoppedLoading", func(d []byte) interface{} { return nil })
 	defaultEventloop.Register(p.session.ID, sub)
+	defer defaultEventloop.Cancel(p.session.ID)
 
-	err := p.session.CallMethod(nav, cb)
+	ret, err := p.session.Execute(nav)
 	if err != nil {
-		cb.Deleted()
-		return
-	}
-
-	select {
-	case err = <-cb.WaitError():
-		return
-	case <-cb.WaitResult():
-		// todo:
+		return err
 	}
 	sub.WaitUtilPublished()
+	fmt.Println(ret.(*page.NavigateReturns))
+	return nil
 }
