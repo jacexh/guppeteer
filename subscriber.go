@@ -4,6 +4,8 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
+
+	"github.com/jacexh/guppeteer/cdp/target"
 )
 
 type (
@@ -18,14 +20,33 @@ type (
 		f        func([]byte) interface{}
 		ret      interface{}
 	}
+
+	eventloop struct {
+		sessions sync.Map
+	}
 )
 
-func (sub *Subscriber) Subscribe(event string, f func([]byte) interface{}) error {
-	if _, loaded := sub.receivers.LoadOrStore(event, NewReceiver(event, f)); !loaded {
-		sub.wg.Add(1)
-		return nil
+var (
+	defaultEventloop = &eventloop{}
+)
+
+func (el *eventloop) Register(sid target.SessionID, sub *Subscriber) {
+	el.sessions.Store(sid, sub)
+}
+
+func (el *eventloop) Cancel(sid target.SessionID) {
+	el.sessions.Delete(sid)
+}
+
+func (el *eventloop) Handle(sid target.SessionID, event string, d []byte) {
+	if val, loaded := el.sessions.Load(sid); loaded {
+		sub := val.(*Subscriber)
+		sub.Handle(event, d)
 	}
-	return errors.New("duplicated event")
+}
+
+func (sub *Subscriber) Subscribe(event string, f func([]byte) interface{}) {
+	sub.receivers.Store(event, NewReceiver(event, f))
 }
 
 func (sub *Subscriber) Handle(event string, d []byte) {
@@ -53,10 +74,12 @@ func NewReceiver(event string, f func([]byte) interface{}) *Receiver {
 
 func (rc *Receiver) Receive(d []byte) (interface{}, error) {
 	if atomic.CompareAndSwapInt32(&rc.received, 0, 1) {
-		rc.ret = rc.f(d)
+		if rc.f != nil {
+			rc.ret = rc.f(d)
+		}
 		return rc.ret, nil
 	}
-	return nil, errors.New("received message yet")
+	return nil, errors.New("received message")
 }
 
 func (rc *Receiver) Returns() interface{} {

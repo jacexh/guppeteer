@@ -79,6 +79,7 @@ func (cnx *Connection) handleCallback(msg *cdp.Message) {
 	if !loaded {
 		return
 	}
+	defer cnx.callbacks.Delete(msg.ID)
 	cb := val.(*Callback)
 	if msg.HasError() {
 		cb.SetError(msg.GetError())
@@ -104,7 +105,7 @@ func (cnx *Connection) handleEvent(msg *cdp.Message) {
 			if sm.ID != 0 {
 				s.(*Session).handleCallback(sm) // Session级别的method
 			} else {
-				s.(*Session).handleEvent(sm) // Session级别的event
+				defaultEventloop.Handle(sid, sm.Method, sm.Params)
 			}
 		}
 
@@ -182,6 +183,7 @@ func (ss *Session) handleCallback(msg *cdp.Message) {
 	if !loaded {
 		return
 	}
+	defer ss.callbacks.Delete(msg.ID)
 	cb := val.(*Callback)
 	if msg.HasError() {
 		cb.SetError(msg.GetError())
@@ -190,8 +192,7 @@ func (ss *Session) handleCallback(msg *cdp.Message) {
 	}
 }
 
-func (ss *Session) handleEvent(msg *cdp.Message) {}
-
 func (ss *Session) Close() error {
+	// todo:
 	return nil
 }

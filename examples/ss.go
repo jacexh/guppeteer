@@ -20,7 +20,7 @@ func main() {
 	}
 
 	callback := guppeteer.NewCallback()
-	nav := &page.MethodNavigate{URL: "http://www.google.com"}
+	nav := &page.MethodNavigate{URL: "http://www.163.com"}
 	ss.CallMethod(nav, callback)
 
 	timeout := 5 * time.Second
