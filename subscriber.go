@@ -46,6 +46,7 @@ func (el *eventloop) Handle(sid target.SessionID, event string, d []byte) {
 }
 
 func (sub *Subscriber) Subscribe(event string, f func([]byte) interface{}) {
+	sub.wg.Add(1)
 	sub.receivers.Store(event, NewReceiver(event, f))
 }
 
