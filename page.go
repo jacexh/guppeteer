@@ -1,8 +1,6 @@
 package guppeteer
 
 import (
-	"fmt"
-
 	"github.com/jacexh/guppeteer/cdp/network"
 	"github.com/jacexh/guppeteer/cdp/page"
 )
@@ -35,20 +33,33 @@ func CreatePage(s *Session) (*Page, error) {
 	return p, nil
 }
 
-func (p *Page) Goto(url, referrer string) error {
+func (p *Page) Goto(url, referrer string) (*page.Frame, error) {
 	nav := &page.MethodNavigate{URL: url, Referrer: referrer}
-	cb := defaultCallbackPool.Get()
-	defer defaultCallbackPool.Put(cb)
+
+	retFrame := new(page.Frame)
+	var retErr error
 	sub := &Subscriber{}
-	sub.Subscribe("Page.frameStoppedLoading", func(d []byte) interface{} { return nil })
+	sub.Subscribe("Page.frameStoppedLoading", nil)
+	sub.Subscribe("Page.frameNavigated", func(d []byte) {
+		ev := &page.EventFrameNavigated{}
+		ret, err := ev.Load(d)
+		if err != nil {
+			retErr = err
+		} else {
+			retFrame = ret.(*page.FrameNavigatedParams).Frame
+		}
+	})
 	defaultEventloop.Register(p.session.ID, sub)
 	defer defaultEventloop.Cancel(p.session.ID)
 
-	ret, err := p.session.Execute(nav)
+	_, err := p.session.Execute(nav)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	sub.WaitUtilPublished()
-	fmt.Println(ret.(*page.NavigateReturns))
-	return nil
+
+	if retErr != nil {
+		return nil, retErr
+	}
+	return retFrame, nil
 }

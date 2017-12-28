@@ -17,8 +17,7 @@ type (
 	Receiver struct {
 		received int32
 		event    string
-		f        func([]byte) interface{}
-		ret      interface{}
+		f        func([]byte)
 	}
 
 	eventloop struct {
@@ -45,7 +44,7 @@ func (el *eventloop) Handle(sid target.SessionID, event string, d []byte) {
 	}
 }
 
-func (sub *Subscriber) Subscribe(event string, f func([]byte) interface{}) {
+func (sub *Subscriber) Subscribe(event string, f func([]byte)) {
 	sub.wg.Add(1)
 	sub.receivers.Store(event, NewReceiver(event, f))
 }
@@ -69,20 +68,16 @@ func (sub *Subscriber) WaitUtilPublished() map[string]*Receiver {
 	return ret
 }
 
-func NewReceiver(event string, f func([]byte) interface{}) *Receiver {
+func NewReceiver(event string, f func([]byte)) *Receiver {
 	return &Receiver{event: event, f: f}
 }
 
-func (rc *Receiver) Receive(d []byte) (interface{}, error) {
+func (rc *Receiver) Receive(d []byte) error {
 	if atomic.CompareAndSwapInt32(&rc.received, 0, 1) {
 		if rc.f != nil {
-			rc.ret = rc.f(d)
+			rc.f(d)
 		}
-		return rc.ret, nil
+		return nil
 	}
-	return nil, errors.New("received message")
-}
-
-func (rc *Receiver) Returns() interface{} {
-	return rc.ret
+	return errors.New("received message")
 }
