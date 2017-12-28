@@ -13,23 +13,15 @@ func NewBrowser(cnx *Connection) *Browser {
 }
 
 func (b *Browser) NewPage() (*Page, error) {
-	callback := defaultCallbackPool.Get()
-	defer defaultCallbackPool.Put(callback)
 	method := &target.MethodCreateTarget{URL: "about:blank"}
-	err := b.cnx.invoke(method, callback)
+	r, err := b.cnx.Execute(method)
 	if err != nil {
 		return nil, err
 	}
-	select {
-	case err = <-callback.WaitError():
+	ret := r.(*target.CreateTargetReturns)
+	ss, err := b.cnx.CreateSession(ret.TargetID)
+	if err != nil {
 		return nil, err
-	case data := <-callback.WaitResult():
-		r, _ := method.Load(data)
-		ret := r.(*target.CreateTargetReturns)
-		ss, err := b.cnx.CreateSession(ret.TargetID)
-		if err != nil {
-			return nil, err
-		}
-		return CreatePage(ss)
 	}
+	return CreatePage(ss)
 }

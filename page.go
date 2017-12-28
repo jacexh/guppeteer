@@ -13,22 +13,14 @@ type (
 
 func CreatePage(s *Session) (*Page, error) {
 	p := &Page{s}
-	cb1 := defaultCallbackPool.Get()
-	defer defaultCallbackPool.Put(cb1)
-	p.session.invoke(&page.MethodEnable{}, cb1)
-	select {
-	case err := <-cb1.WaitError():
+	_, err := s.Execute(&page.MethodEnable{})
+	if err != nil {
 		return nil, err
-	case <-cb1.WaitResult():
 	}
 
-	cb2 := defaultCallbackPool.Get()
-	defer defaultCallbackPool.Put(cb2)
-	p.session.invoke(&network.MethodEnable{}, cb2)
-	select {
-	case err := <-cb2.WaitError():
+	_, err = s.Execute(&network.MethodEnable{})
+	if err != nil {
 		return nil, err
-	case <-cb2.WaitResult():
 	}
 	return p, nil
 }

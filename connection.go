@@ -164,21 +164,13 @@ func (cnx *Connection) receiveMessage() error {
 
 func (cnx *Connection) CreateSession(tid target.TargetID) (*Session, error) {
 	m := &target.MethodAttachToTarget{TargetID: tid}
-	callback := defaultCallbackPool.Get()
-	cnx.invoke(m, callback)
-	defer func() { defaultCallbackPool.Put(callback) }()
-	select {
-	case err := <-callback.WaitError():
+	ret, err := cnx.Execute(m)
+	if err != nil {
 		return nil, err
-	case data := <-callback.WaitResult():
-		ret, err := m.Load(data)
-		if err != nil {
-			return nil, err
-		}
-		ss := &Session{ID: ret.(*target.AttachToTargetReturns).SessionID, TID: tid, parent: cnx}
-		cnx.sessions.Store(ss.ID, ss)
-		return ss, nil
 	}
+	ss := &Session{ID: ret.(*target.AttachToTargetReturns).SessionID, TID: tid, parent: cnx}
+	cnx.sessions.Store(ss.ID, ss)
+	return ss, nil
 }
 
 func (ss *Session) invoke(method cdp.Method, notifier *Callback) error {
